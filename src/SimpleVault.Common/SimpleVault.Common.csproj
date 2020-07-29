@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>Swisschain.Sirius.SimpleVault.Common</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ServiceFunctions\**" />
+    <EmbeddedResource Remove="ServiceFunctions\**" />
+    <None Remove="ServiceFunctions\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="6.3.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="3.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.6" />
+    <PackageReference Include="Portable.BouncyCastle" Version="1.8.6.7" />
+    <PackageReference Include="Swisschain.Sirius.Sdk.Crypto" Version="2.2.4-beta.1" />
+
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.6" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="3.1.4" />
+    <PackageReference Include="Swisschain.Extensions.Postgres" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>

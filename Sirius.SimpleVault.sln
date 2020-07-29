@@ -1,0 +1,98 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4F241B50-8BB3-46B8-8412-BBF8A371DDF9}"
+ProjectSection(SolutionItems) = preProject
+	.dockerignore = .dockerignore
+	.editorconfig = .editorconfig
+	.gitattributes = .gitattributes
+	.gitignore = .gitignore
+	LICENSE = LICENSE
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{A9F8E660-C6B9-4DF6-87C0-2AF05FCBE525}"
+ProjectSection(SolutionItems) = preProject
+	README.md = README.md
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{323034F6-56B4-44AF-AE95-A402DFA4C666}"
+ProjectSection(SolutionItems) = preProject
+	deployment\readme.md = deployment\readme.md
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Kubernetes", "Kubernetes", "{3CBEAC15-52EB-4103-A4C1-C07064136545}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Service-Simple-Vault", "Service-Simple-Vault", "{3D5D6F34-9DE6-42A8-B20F-1C6B313200B8}"
+ProjectSection(SolutionItems) = preProject
+	deployment\kubernetes\Service-Simple-Vault\deployment.yaml = deployment\kubernetes\Service-Simple-Vault\deployment.yaml
+	deployment\kubernetes\Service-Simple-Vault\service.yaml = deployment\kubernetes\Service-Simple-Vault\service.yaml
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Service-Simple-Vault-Worker", "Service-Simple-Vault-Worker", "{27731D4E-28FC-4F2A-B024-24645CFBF6F7}"
+ProjectSection(SolutionItems) = preProject
+	deployment\kubernetes\Service-Simple-Vault-Worker\deployment.yaml = deployment\kubernetes\Service-Simple-Vault-Worker\deployment.yaml
+	deployment\kubernetes\Service-Simple-Vault-Worker\service.yaml = deployment\kubernetes\Service-Simple-Vault-Worker\service.yaml
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Settings", "Settings", "{85F1D053-9A4D-41B4-8050-AAB187FE0868}"
+ProjectSection(SolutionItems) = preProject
+	deployment\settings\common.json = deployment\settings\common.json
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sirius", "sirius", "{FCFC4AE3-9CF4-4E4C-B0BC-1A6772D34E24}"
+ProjectSection(SolutionItems) = preProject
+	deployment\settings\sirius\common.json = deployment\settings\sirius\common.json
+	deployment\settings\sirius\simple-vault.json = deployment\settings\sirius\simple-vault.json
+EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Github workflow", "Github workflow", "{86BC5A26-0EF5-4472-BB86-B5BFB5887718}"
+ProjectSection(SolutionItems) = preProject
+	.github\workflows\ci.yml = .github\workflows\ci.yml
+	.github\workflows\release-service.yml = .github\workflows\release-service.yml
+	.github\workflows\validate-master.yml = .github\workflows\validate-master.yml
+EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleVault.Common", "src\SimpleVault.Common\SimpleVault.Common.csproj", "{35E716B9-5078-444F-A4E3-B268A960AF67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleVault", "src\SimpleVault\SimpleVault.csproj", "{F932161C-6FC5-4DE1-9246-C10966420FF4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleVault.Worker", "src\SimpleVault.Worker\SimpleVault.Worker.csproj", "{11D855B7-C318-4EC7-86A0-2E8944FEA7DC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{5E1E6B82-6C4B-48D3-BCB1-DA6C751EFB2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleVault.Common.Tests", "tests\SimpleVault.Common.Tests\SimpleVault.Common.Tests.csproj", "{6FD08521-56D1-4054-8921-10D75F425AB4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A9F8E660-C6B9-4DF6-87C0-2AF05FCBE525} = {4F241B50-8BB3-46B8-8412-BBF8A371DDF9}
+		{323034F6-56B4-44AF-AE95-A402DFA4C666} = {A9F8E660-C6B9-4DF6-87C0-2AF05FCBE525}
+		{3CBEAC15-52EB-4103-A4C1-C07064136545} = {323034F6-56B4-44AF-AE95-A402DFA4C666}
+		{3D5D6F34-9DE6-42A8-B20F-1C6B313200B8} = {3CBEAC15-52EB-4103-A4C1-C07064136545}
+		{27731D4E-28FC-4F2A-B024-24645CFBF6F7} = {3CBEAC15-52EB-4103-A4C1-C07064136545}
+		{85F1D053-9A4D-41B4-8050-AAB187FE0868} = {323034F6-56B4-44AF-AE95-A402DFA4C666}
+		{FCFC4AE3-9CF4-4E4C-B0BC-1A6772D34E24} = {85F1D053-9A4D-41B4-8050-AAB187FE0868}
+		{86BC5A26-0EF5-4472-BB86-B5BFB5887718} = {4F241B50-8BB3-46B8-8412-BBF8A371DDF9}
+		{6FD08521-56D1-4054-8921-10D75F425AB4} = {5E1E6B82-6C4B-48D3-BCB1-DA6C751EFB2D}
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{35E716B9-5078-444F-A4E3-B268A960AF67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35E716B9-5078-444F-A4E3-B268A960AF67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35E716B9-5078-444F-A4E3-B268A960AF67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35E716B9-5078-444F-A4E3-B268A960AF67}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F932161C-6FC5-4DE1-9246-C10966420FF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F932161C-6FC5-4DE1-9246-C10966420FF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F932161C-6FC5-4DE1-9246-C10966420FF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F932161C-6FC5-4DE1-9246-C10966420FF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11D855B7-C318-4EC7-86A0-2E8944FEA7DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11D855B7-C318-4EC7-86A0-2E8944FEA7DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11D855B7-C318-4EC7-86A0-2E8944FEA7DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11D855B7-C318-4EC7-86A0-2E8944FEA7DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FD08521-56D1-4054-8921-10D75F425AB4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FD08521-56D1-4054-8921-10D75F425AB4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FD08521-56D1-4054-8921-10D75F425AB4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FD08521-56D1-4054-8921-10D75F425AB4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

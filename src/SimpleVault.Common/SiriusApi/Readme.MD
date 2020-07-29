@@ -1,0 +1,1 @@
+﻿Use nswag studio to regenerate client

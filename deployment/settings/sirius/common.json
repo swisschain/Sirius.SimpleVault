@@ -1,0 +1,7 @@
+{
+  "RabbitMq": {
+    "HostUrl": "rabbit.sirius.svc.cluster.local",
+    "Username": "${Sirius-RabbitMq-Login}",
+    "Password": "${Sirius-RabbitMq-Password}"
+  }
+}
