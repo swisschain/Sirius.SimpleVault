@@ -2,10 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Swisschain.Extensions.Postgres;
-using SimpleVault.Common.Persistence.Cursors;
 using SimpleVault.Common.Persistence.Transactions;
 using SimpleVault.Common.Persistence.Wallets;
-using SimpleVault.Common.Persistence.HostedServices;
 
 namespace SimpleVault.Common.Persistence
 {
@@ -15,7 +13,6 @@ namespace SimpleVault.Common.Persistence
             string connectionString)
         {
             services.AddTransient<IWalletRepository, WalletRepository>();
-            services.AddTransient<ICursorRepository, CursorRepository>();
             services.AddTransient<ITransactionRepository, TransactionRepository>();
 
             services.AddSingleton(x =>
@@ -29,22 +26,6 @@ namespace SimpleVault.Common.Persistence
 
                 return optionsBuilder;
             });
-
-            services.AddHostedService<MigrationHost>();
-
-            return services;
-        }
-
-        public static IServiceCollection AddPostgresMigration(this IServiceCollection services)
-        {
-            services.AddHostedService<MigrationHost>();
-
-            return services;
-        }
-
-        public static IServiceCollection AddPostgresSchemaValidation(this IServiceCollection services)
-        {
-            services.AddHostedService<DbSchemaValidationHost>();
 
             return services;
         }

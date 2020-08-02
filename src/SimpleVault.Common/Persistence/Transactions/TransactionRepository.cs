@@ -26,7 +26,8 @@ namespace SimpleVault.Common.Persistence.Transactions
             {
                 await context.SaveChangesAsync();
             }
-            catch (DbUpdateException e) when (e.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
+                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
             }
         }
@@ -45,9 +46,11 @@ namespace SimpleVault.Common.Persistence.Transactions
 
                 return transaction;
             }
-            catch (DbUpdateException e) when (e.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
+                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
-                var existing = await context.Transactions.FirstAsync(x => x.TransactionSigningRequestId == transaction.TransactionSigningRequestId);
+                var existing = await context.Transactions.FirstAsync(x =>
+                    x.TransactionSigningRequestId == transaction.TransactionSigningRequestId);
 
                 return MapToDomain(existing);
             }
@@ -78,7 +81,7 @@ namespace SimpleVault.Common.Persistence.Transactions
 
         private static TransactionEntity MapToEntity(Transaction transaction)
         {
-            return new TransactionEntity()
+            return new TransactionEntity
             {
                 CreatedAt = transaction.CreatedAt,
                 NetworkType = transaction.NetworkType,

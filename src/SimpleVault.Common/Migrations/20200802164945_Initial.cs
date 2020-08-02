@@ -12,32 +12,19 @@ namespace SimpleVault.Common.Migrations
                 name: "simple_vault");
 
             migrationBuilder.CreateTable(
-                name: "cursor",
-                schema: "simple_vault",
-                columns: table => new
-                {
-                    Id = table.Column<string>(nullable: false),
-                    Cursor = table.Column<long>(nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_cursor", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "transactions",
                 schema: "simple_vault",
                 columns: table => new
                 {
                     TransactionSigningRequestId = table.Column<long>(nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TransactionId = table.Column<string>(nullable: true),
                     BlockchainId = table.Column<string>(nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(nullable: false),
-                    SignedTransaction = table.Column<byte[]>(nullable: true),
-                    SigningAddresses = table.Column<string>(nullable: true),
                     ProtocolCode = table.Column<string>(nullable: true),
                     NetworkType = table.Column<int>(nullable: false),
-                    TransactionId = table.Column<string>(nullable: true)
+                    SignedTransaction = table.Column<byte[]>(nullable: true),
+                    SigningAddresses = table.Column<string>(nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -54,11 +41,11 @@ namespace SimpleVault.Common.Migrations
                     BlockchainId = table.Column<string>(nullable: true),
                     ProtocolCode = table.Column<string>(nullable: true),
                     NetworkType = table.Column<int>(nullable: false),
-                    CreatedAt = table.Column<DateTime>(nullable: false),
                     Address = table.Column<string>(nullable: true),
                     PublicKey = table.Column<string>(nullable: true),
-                    ScriptPubKey = table.Column<string>(nullable: true),
-                    PrivateKey = table.Column<string>(nullable: true)
+                    ScriptPublicKey = table.Column<string>(nullable: true),
+                    PrivateKey = table.Column<string>(nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -66,7 +53,7 @@ namespace SimpleVault.Common.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Wallet_Address",
+                name: "IX_wallets_Address",
                 schema: "simple_vault",
                 table: "wallets",
                 column: "Address");
@@ -74,10 +61,6 @@ namespace SimpleVault.Common.Migrations
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "cursor",
-                schema: "simple_vault");
-
             migrationBuilder.DropTable(
                 name: "transactions",
                 schema: "simple_vault");

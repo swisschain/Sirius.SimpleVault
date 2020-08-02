@@ -20,19 +20,6 @@ namespace SimpleVault.Common.Migrations
                 .HasAnnotation("ProductVersion", "3.1.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            modelBuilder.Entity("SimpleVault.Common.Persistence.Cursors.CursorEntity", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<long>("Cursor")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("cursor");
-                });
-
             modelBuilder.Entity("SimpleVault.Common.Persistence.Transactions.TransactionEntity", b =>
                 {
                     b.Property<long>("TransactionSigningRequestId")
@@ -79,8 +66,8 @@ namespace SimpleVault.Common.Migrations
                     b.Property<string>("BlockchainId")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("NetworkType")
                         .HasColumnType("integer");
@@ -94,13 +81,12 @@ namespace SimpleVault.Common.Migrations
                     b.Property<string>("PublicKey")
                         .HasColumnType("text");
 
-                    b.Property<string>("ScriptPubKey")
+                    b.Property<string>("ScriptPublicKey")
                         .HasColumnType("text");
 
                     b.HasKey("WalletGenerationRequestId");
 
-                    b.HasIndex("Address")
-                        .HasName("IX_Wallet_Address");
+                    b.HasIndex("Address");
 
                     b.ToTable("wallets");
                 });

@@ -8,13 +8,12 @@ namespace SimpleVault.Common.Domain
 {
     public class Wallet
     {
-        private Wallet(
-            long walletGenerationRequestId,
+        private Wallet(long walletGenerationRequestId,
             string blockchainId,
             DateTime createdAt,
             string address,
             string publicKey,
-            string scriptPubKey,
+            string scriptPublicKey,
             string privateKey,
             NetworkType networkType,
             string protocolCode)
@@ -24,7 +23,7 @@ namespace SimpleVault.Common.Domain
             CreatedAt = createdAt;
             Address = address;
             PublicKey = publicKey;
-            ScriptPubKey = scriptPubKey;
+            ScriptPublicKey = scriptPublicKey;
             PrivateKey = privateKey;
             NetworkType = networkType;
             ProtocolCode = protocolCode;
@@ -34,19 +33,19 @@ namespace SimpleVault.Common.Domain
 
         public string BlockchainId { get; }
 
-        public DateTime CreatedAt { get; }
+        public string ProtocolCode { get; }
+
+        public NetworkType NetworkType { get; }
 
         public string Address { get; }
 
         public string PublicKey { get; }
 
-        public string ScriptPubKey { get; }
+        public string ScriptPublicKey { get; }
 
         public string PrivateKey { get; }
 
-        public string ProtocolCode { get; }
-
-        public NetworkType NetworkType { get; }
+        public DateTime CreatedAt { get; }
 
         public static Wallet Create(
             IEncryptionService encryptionService,
@@ -56,14 +55,16 @@ namespace SimpleVault.Common.Domain
             string blockchainId)
         {
             var addressGeneratorFactory = new AddressGeneratorFactory();
+            
             IAddressGenerator addressGenerator;
+            
             try
             {
                 addressGenerator = addressGeneratorFactory.Create(protocolCode);
             }
-            catch (ArgumentOutOfRangeException e)
+            catch (ArgumentOutOfRangeException exception)
             {
-                throw new BlockchainIsNotSupportedException(e);
+                throw new BlockchainIsNotSupportedException(exception);
             }
 
             var generatedWallet = addressGenerator.Generate(networkType);
@@ -89,7 +90,7 @@ namespace SimpleVault.Common.Domain
             DateTime createdAt,
             string address,
             string publicKey,
-            string scriptPubKey,
+            string scriptPublicKey,
             string privateKey,
             string protocolCode,
             NetworkType networkType)
@@ -100,7 +101,7 @@ namespace SimpleVault.Common.Domain
                 createdAt,
                 address,
                 publicKey,
-                scriptPubKey,
+                scriptPublicKey,
                 privateKey,
                 networkType,
                 protocolCode);

@@ -7,16 +7,17 @@ using Swisschain.Sirius.Sdk.Crypto.TransactionSigning;
 using SimpleVault.Common.Cryptography;
 using SimpleVault.Common.Exceptions;
 using SimpleVault.Common.Persistence.Wallets;
+using Swisschain.Sirius.Sdk.Primitives;
 
 namespace SimpleVault.Common.Domain
 {
     public class Transaction
     {
-        public Transaction(
+        private Transaction(
             long transactionSigningRequestId,
             string blockchainId,
             DateTime createdAt,
-            Swisschain.Sirius.Sdk.Primitives.NetworkType networkType,
+            NetworkType networkType,
             string protocolCode,
             IReadOnlyCollection<string> signingAddresses,
             byte[] signedTransaction,
@@ -33,38 +34,38 @@ namespace SimpleVault.Common.Domain
         }
 
         public long TransactionSigningRequestId { get; }
-
+        
+        public string TransactionId { get; }
+        
         public string BlockchainId { get; }
 
-        public DateTime CreatedAt { get; }
+        public string ProtocolCode { get; }
+
+        public NetworkType NetworkType { get; }
 
         public byte[] SignedTransaction { get; }
 
         public IReadOnlyCollection<string> SigningAddresses { get; }
 
-        public string ProtocolCode { get; }
-
-        public Swisschain.Sirius.Sdk.Primitives.NetworkType NetworkType { get; }
-
-        public string TransactionId { get; }
-
+        public DateTime CreatedAt { get; }
+        
         public static async Task<Transaction> Create(
             IWalletRepository walletRepository,
             IEncryptionService encryptionService,
             long transactionSigningRequestId,
             string blockchainId,
             DateTime createdAt,
-            Swisschain.Sirius.Sdk.Primitives.NetworkType networkType,
+            NetworkType networkType,
             string protocolCode,
             IReadOnlyCollection<string> signingAddresses,
             byte[] builtTransaction,
-            Swisschain.Sirius.Sdk.Primitives.DoubleSpendingProtectionType doubleSpendingProtectionType,
-            IReadOnlyCollection<Swisschain.Sirius.Sdk.Primitives.Coin> coinsToSpend)
+            DoubleSpendingProtectionType doubleSpendingProtectionType,
+            IReadOnlyCollection<Coin> coinsToSpend)
         {
             var transactionSignerFactory = new TransactionSignerFactory();
             TransactionSigningResult signedResult;
 
-            if (doubleSpendingProtectionType == Swisschain.Sirius.Sdk.Primitives.DoubleSpendingProtectionType.Nonce)
+            if (doubleSpendingProtectionType == DoubleSpendingProtectionType.Nonce)
             {
                 signedResult = await CreateAsync(transactionSignerFactory,
                     protocolCode,
@@ -74,8 +75,7 @@ namespace SimpleVault.Common.Domain
                     networkType,
                     builtTransaction);
             }
-            else if (doubleSpendingProtectionType ==
-                     Swisschain.Sirius.Sdk.Primitives.DoubleSpendingProtectionType.Coins)
+            else if (doubleSpendingProtectionType == DoubleSpendingProtectionType.Coins)
             {
                 signedResult = await CreateCoinsAsync(transactionSignerFactory,
                     protocolCode,
@@ -88,9 +88,9 @@ namespace SimpleVault.Common.Domain
             }
             else
             {
-                throw new InvalidEnumArgumentException("Unknown double spending protection type",
+                throw new InvalidEnumArgumentException("Unknown double spending protection type.",
                     (int) doubleSpendingProtectionType,
-                    typeof(Swisschain.Sirius.Sdk.Primitives.DoubleSpendingProtectionType));
+                    typeof(DoubleSpendingProtectionType));
             }
 
             var transaction = new Transaction(
@@ -110,7 +110,7 @@ namespace SimpleVault.Common.Domain
             long transactionSigningRequestId,
             string blockchainId,
             DateTime createdAt,
-            Swisschain.Sirius.Sdk.Primitives.NetworkType networkType,
+            NetworkType networkType,
             string protocolCode,
             IReadOnlyCollection<string> signingAddresses,
             byte[] signedTransaction,
@@ -135,7 +135,7 @@ namespace SimpleVault.Common.Domain
             IWalletRepository walletRepository,
             IReadOnlyCollection<string> signingAddresses,
             IEncryptionService encryptionService,
-            Swisschain.Sirius.Sdk.Primitives.NetworkType networkType,
+            NetworkType networkType,
             byte[] builtTransaction)
         {
             ITransactionSigner transactionSigner;
@@ -158,7 +158,7 @@ namespace SimpleVault.Common.Domain
             }
             catch (Exception exception)
             {
-                throw new TransactionSigninFailedException("An error occured while signing transaction", exception);
+                throw new TransactionSigninFailedException("An error occured while signing transaction.", exception);
             }
         }
 
@@ -168,9 +168,9 @@ namespace SimpleVault.Common.Domain
             IWalletRepository walletRepository,
             IReadOnlyCollection<string> signingAddresses,
             IEncryptionService encryptionService,
-            Swisschain.Sirius.Sdk.Primitives.NetworkType networkType,
+            NetworkType networkType,
             byte[] builtTransaction,
-            IReadOnlyCollection<Swisschain.Sirius.Sdk.Primitives.Coin> coinsToSpend)
+            IReadOnlyCollection<Coin> coinsToSpend)
         {
             ICoinsTransactionSigner transactionSigner;
             try
@@ -195,7 +195,7 @@ namespace SimpleVault.Common.Domain
             }
             catch (Exception exception)
             {
-                throw new TransactionSigninFailedException("An error occured while signing transaction", exception);
+                throw new TransactionSigninFailedException("An error occured while signing transaction.", exception);
             }
         }
     }
