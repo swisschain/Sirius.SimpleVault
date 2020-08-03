@@ -13,7 +13,6 @@ namespace SimpleVault.Common.Domain
             DateTime createdAt,
             string address,
             string publicKey,
-            string scriptPublicKey,
             string privateKey,
             NetworkType networkType,
             string protocolCode)
@@ -23,7 +22,6 @@ namespace SimpleVault.Common.Domain
             CreatedAt = createdAt;
             Address = address;
             PublicKey = publicKey;
-            ScriptPublicKey = scriptPublicKey;
             PrivateKey = privateKey;
             NetworkType = networkType;
             ProtocolCode = protocolCode;
@@ -40,8 +38,6 @@ namespace SimpleVault.Common.Domain
         public string Address { get; }
 
         public string PublicKey { get; }
-
-        public string ScriptPublicKey { get; }
 
         public string PrivateKey { get; }
 
@@ -76,7 +72,6 @@ namespace SimpleVault.Common.Domain
                 DateTime.UtcNow,
                 generatedWallet.Address,
                 generatedWallet.PublicKey,
-                generatedWallet.ScriptPubKey,
                 privateKey,
                 networkType,
                 protocolCode);
@@ -90,7 +85,6 @@ namespace SimpleVault.Common.Domain
             DateTime createdAt,
             string address,
             string publicKey,
-            string scriptPublicKey,
             string privateKey,
             string protocolCode,
             NetworkType networkType)
@@ -101,7 +95,6 @@ namespace SimpleVault.Common.Domain
                 createdAt,
                 address,
                 publicKey,
-                scriptPublicKey,
                 privateKey,
                 networkType,
                 protocolCode);

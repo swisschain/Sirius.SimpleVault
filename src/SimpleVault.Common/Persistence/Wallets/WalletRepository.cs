@@ -105,8 +105,7 @@ namespace SimpleVault.Common.Persistence.Wallets
                 PublicKey = wallet.PublicKey,
                 PrivateKey = wallet.PrivateKey,
                 NetworkType = wallet.NetworkType,
-                ProtocolCode = wallet.ProtocolCode,
-                ScriptPublicKey = wallet.ScriptPublicKey
+                ProtocolCode = wallet.ProtocolCode
             };
         }
 
@@ -118,7 +117,6 @@ namespace SimpleVault.Common.Persistence.Wallets
                 entity.CreatedAt.UtcDateTime,
                 entity.Address,
                 entity.PublicKey,
-                entity.ScriptPublicKey,
                 entity.PrivateKey,
                 entity.ProtocolCode,
                 entity.NetworkType);

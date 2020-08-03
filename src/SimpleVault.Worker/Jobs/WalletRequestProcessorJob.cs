@@ -122,7 +122,6 @@ namespace SimpleVault.Worker.Jobs
                         WalletGenerationRequestId = wallet.WalletGenerationRequestId,
                         PublicKey = wallet.PublicKey,
                         Address = wallet.Address,
-                        ScriptPublicKey = wallet.ScriptPublicKey
                     });
 
                     _logger.LogInformation("Wallet generation request confirmed. {@context}", context);

@@ -17,8 +17,6 @@ namespace SimpleVault.Common.Persistence.Wallets
 
         public string PublicKey { get; set; }
 
-        public string ScriptPublicKey { get; set; }
-
         public string PrivateKey { get; set; }
         
         public DateTimeOffset CreatedAt { get; set; }

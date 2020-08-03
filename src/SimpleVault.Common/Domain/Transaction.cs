@@ -184,12 +184,26 @@ namespace SimpleVault.Common.Domain
 
             var wallets = await walletRepository.GetByAddressesAsync(signingAddresses);
 
+            var walletDict = wallets.ToDictionary(x => x.Address);
             var privateKeys = wallets.Select(x => encryptionService.Decrypt(x.PrivateKey)).ToArray();
 
             try
             {
                 return transactionSigner.Sign(builtTransaction,
-                    coinsToSpend,
+                    coinsToSpend?.Select(x =>
+                    {
+                        if (!walletDict.TryGetValue(x.Address, out var wallet))
+                        {
+                            throw new InvalidOperationException($"No wallets are stored for {x.Address}");
+                        }
+
+                        return new Swisschain.Sirius.Sdk.Crypto.Coin(x.Id,
+                            x.Asset,
+                            x.Value,
+                            wallet?.PublicKey,
+                            x.Redeem);
+                    })
+                        .ToArray(),
                     privateKeys,
                     networkType);
             }

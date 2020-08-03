@@ -192,7 +192,7 @@ namespace SimpleVault.Worker.Jobs
 
             var coins = request.CoinsToSpend?
                             .Select(x =>
-                                new Swisschain.Sirius.Sdk.Primitives.Coin(
+                                new Coin(
                                     new Swisschain.Sirius.Sdk.Primitives.CoinId(x.Id.TransactionId,
                                         x.Id.Number),
                                     new Swisschain.Sirius.Sdk.Primitives.BlockchainAsset(
@@ -201,10 +201,10 @@ namespace SimpleVault.Worker.Jobs
                                             x.Asset.Id.Address),
                                         x.Asset.Accuracy),
                                     decimal.Parse(x.Value),
-                                    x.ScriptPublicKey,
+                                    x.Address,
                                     x.Redeem
                                 ))
-                            .ToArray() ?? Array.Empty<Swisschain.Sirius.Sdk.Primitives.Coin>();
+                            .ToArray() ?? Array.Empty<Coin>();
 
             var transaction = await Transaction.Create(
                 _walletRepository,
