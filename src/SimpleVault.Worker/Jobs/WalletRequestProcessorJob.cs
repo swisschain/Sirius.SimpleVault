@@ -1,69 +1,61 @@
 ﻿using System;
-using System.Linq;
+using System.ComponentModel;
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Polly;
-using Polly.Retry;
-using Swisschain.Sirius.SimpleVault.Api.Client;
 using SimpleVault.Common.Cryptography;
 using SimpleVault.Common.Domain;
 using SimpleVault.Common.Exceptions;
-using SimpleVault.Common.Persistence;
 using SimpleVault.Common.Persistence.Wallets;
+using Swisschain.Sirius.VaultApi.ApiClient;
+using Swisschain.Sirius.VaultApi.ApiContract.Common;
+using Swisschain.Sirius.VaultApi.ApiContract.Wallets;
 
 namespace SimpleVault.Worker.Jobs
 {
     public class WalletRequestProcessorJob : IDisposable
     {
-        private readonly ILogger<WalletRequestProcessorJob> _logger;
-        private readonly TimeSpan _delayBetweenRequestsUpdate;
-        private readonly ISiriusApiClient _siriusApiClient;
-        private readonly IEncryptionService _encryptionService;
         private readonly IWalletRepository _walletRepository;
-        private readonly ICursorRepository _cursorRepository;
+        private readonly IEncryptionService _encryptionService;
+        private readonly IVaultApiClient _vaultApiClient;
+        private readonly ILogger<WalletRequestProcessorJob> _logger;
+
+        private readonly TimeSpan _delay;
+        private readonly TimeSpan _delayOnError;
         private readonly Timer _timer;
         private readonly ManualResetEventSlim _done;
         private readonly CancellationTokenSource _cts;
-        private readonly AsyncRetryPolicy _retryPolicy;
 
-        public WalletRequestProcessorJob(
-            ILogger<WalletRequestProcessorJob> logger,
-            ISiriusApiClient siriusApiClient,
+        public WalletRequestProcessorJob(IWalletRepository walletRepository,
             IEncryptionService encryptionService,
-            IWalletRepository walletRepository,
-            ICursorRepository cursorRepository)
+            IVaultApiClient vaultApiClient,
+            ILogger<WalletRequestProcessorJob> logger)
         {
-            _logger = logger;
-            _delayBetweenRequestsUpdate = TimeSpan.FromSeconds(1);
-            _siriusApiClient = siriusApiClient;
-            _encryptionService = encryptionService;
             _walletRepository = walletRepository;
-            _cursorRepository = cursorRepository;
+            _encryptionService = encryptionService;
+            _vaultApiClient = vaultApiClient;
+            _logger = logger;
+            _delay = TimeSpan.FromSeconds(1);
+            _delayOnError = TimeSpan.FromSeconds(30);
 
-            _timer = new Timer(TimerCallback, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _timer = new Timer(TimerCallback,
+                null,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
             _done = new ManualResetEventSlim(false);
             _cts = new CancellationTokenSource();
-
-            _logger.LogInformation($"{nameof(WalletRequestProcessorJob)} is being created.");
-            _retryPolicy = Policy
-                .Handle<ApiException>()
-                .WaitAndRetryAsync(3, retryAttempt =>
-                TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))
-            );
         }
 
         public void Start()
         {
             _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-
-            _logger.LogInformation($"{nameof(WalletRequestProcessorJob)} is being started.");
+            _logger.LogInformation($"{nameof(WalletRequestProcessorJob)} started.");
         }
 
         public void Stop()
         {
-            _logger.LogInformation($"{nameof(WalletRequestProcessorJob)} is being stopped.");
-
+            _logger.LogInformation($"{nameof(WalletRequestProcessorJob)} stopped.");
             _cts.Cancel();
         }
 
@@ -81,109 +73,174 @@ namespace SimpleVault.Worker.Jobs
 
         private void TimerCallback(object state)
         {
-            _logger.LogDebug("Wallet requests processing being started");
-
             try
             {
                 ProcessAsync().GetAwaiter().GetResult();
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                _logger.LogError(ex, "Error while processing wallet requests");
+                _logger.LogError(exception, "An error occurred while processing wallet generation requests.");
             }
             finally
             {
                 if (!_cts.IsCancellationRequested)
-                {
-                    _timer.Change(_delayBetweenRequestsUpdate, Timeout.InfiniteTimeSpan);
-                }
+                    _timer.Change(_delay, Timeout.InfiniteTimeSpan);
             }
 
             if (_cts.IsCancellationRequested)
-            {
                 _done.Set();
-            }
-
-            _logger.LogDebug("Wallet requests processing has been done");
         }
 
         private async Task ProcessAsync()
         {
-            var existingCursor = await _cursorRepository.GetOrDefaultAsync(Cursor.WalletId);
-            var cursor = existingCursor?.CursorValue ?? 0;
+            var response = await _vaultApiClient.Wallets.GetAsync(new GetWalletGenerationRequestRequest());
 
-            do
+            if (response.BodyCase == GetWalletGenerationRequestResponse.BodyOneofCase.Error)
             {
-                var paginatedResponse = await _siriusApiClient.ApiWalletGenerationRequestUpdatesAsync(
-                        id: null,
-                        cursor: cursor,
-                        order: PaginationOrder.Asc,
-                        limit: 100,
-                        state: new []
-                        {
-                            WalletGenerationRequestState.Pending
-                        },
-                        vaultType: null,
-                        vaultId: null,
-                        walletGenerationRequestId: null,
-                        component: null,
-                        blockchainId: null,
-                        cancellationToken: _cts.Token);
+                _logger.LogError("An error occurred while getting wallet generation requests. {@error}",
+                    response.Error);
+                await Task.Delay(_delayOnError);
+                return;
+            }
 
-                if (paginatedResponse.Pagination.Count == 0)
-                    break;
-
-                cursor = paginatedResponse.Items.Last().Id;
-
-                foreach (var item in paginatedResponse.Items)
+            foreach (var walletGenerationRequest in response.Response.Requests)
+            {
+                var context = new LoggingContext
                 {
-                    try
-                    {
-                        var wallet = Wallet.Create(
-                            _encryptionService,
-                            item.WalletGenerationRequestId,
-                            item.ProtocolCode,
-                            item.NetworkType switch
-                            {
-                                NetworkType.Private => Swisschain.Sirius.Sdk.Primitives.NetworkType.Private,
-                                NetworkType.Test => Swisschain.Sirius.Sdk.Primitives.NetworkType.Test,
-                                NetworkType.Public => Swisschain.Sirius.Sdk.Primitives.NetworkType.Public,
-                                _ => throw new ArgumentOutOfRangeException(nameof(item.NetworkType), item.NetworkType, null)
-                            },
-                            item.BlockchainId);
+                    WalletGenerationRequestId = walletGenerationRequest.Id,
+                    BlockchainId = walletGenerationRequest.BlockchainId,
+                    ProtocolCode = walletGenerationRequest.ProtocolCode,
+                    NetworkType = walletGenerationRequest.NetworkType
+                };
 
-                        wallet = await _walletRepository.AddOrGetAsync(wallet);
-                        await _retryPolicy.ExecuteAsync(async () =>
-                        {
-                            await _siriusApiClient.ApiWalletGenerationRequestUpdatesConfirmAsync(
-                                $"Vault:Wallet:{wallet.WalletGenerationRequestId}",
-                                wallet.WalletGenerationRequestId,
-                                new WalletGenerationConfirmationRequest
-                                {
-                                    PublicKey = wallet.PublicKey,
-                                    Address = wallet.Address,
-                                    ScriptPubKey = wallet.ScriptPubKey
-                                });
-                        });
-                    }
-                    catch (BlockchainIsNotSupportedException)
+                try
+                {
+                    _logger.LogInformation("Wallet generation request processing. {@context}", context);
+
+                    var wallet = await GenerateWalletAsync(walletGenerationRequest);
+
+                    if (await ConfirmAsync(wallet, context))
+                        _logger.LogInformation("Wallet generation request confirmed. {@context}", context);
+                }
+                catch (DbException exception)
+                {
+                    _logger.LogError(exception,
+                        "An error occurred while attempting to access the database. {@context}",
+                        context);
+
+                    // silently retry
+                }
+                catch (BlockchainIsNotSupportedException exception)
+                {
+                    _logger.LogError(exception, "BlockchainId is not supported. {@context}", context);
+
+                    if (await RejectAsync(walletGenerationRequest.Id,
+                        RejectionReason.UnknownBlockchain,
+                        "BlockchainId is not supported",
+                        context))
                     {
-                        await _retryPolicy.ExecuteAsync(async () =>
-                        {
-                            await _siriusApiClient.ApiWalletGenerationRequestUpdatesRejectAsync($"Vault:Wallet:{item.WalletGenerationRequestId}",
-                                item.WalletGenerationRequestId,
-                                new WalletGenerationRejectionRequest()
-                                {
-                                    ReasonMessage = "BlockchainId is not supported",
-                                    Reason = RejectionReason.UnknownBlockchain
-                                });
-                        });
+                        _logger.LogInformation("Wallet generation request rejected. {@context}", context);
                     }
                 }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception,
+                        "An error occurred while processing wallet generation request. {@context}",
+                        context);
 
-                var newCursor = Cursor.CreateForWallet(cursor);
-                await _cursorRepository.UpdateOrAddAsync(newCursor);
-            } while (true);
+                    if (await RejectAsync(walletGenerationRequest.Id,
+                        RejectionReason.Other,
+                        exception.Message,
+                        context))
+                    {
+                        _logger.LogInformation("Wallet generation request rejected. {@context}", context);
+                    }
+                }
+            }
         }
+
+        private async Task<Wallet> GenerateWalletAsync(WalletGenerationRequest request)
+        {
+            var wallet = Wallet.Create(
+                _encryptionService,
+                request.Id,
+                request.ProtocolCode,
+                request.NetworkType switch
+                {
+                    NetworkType.Private => Swisschain.Sirius.Sdk.Primitives.NetworkType.Private,
+                    NetworkType.Test => Swisschain.Sirius.Sdk.Primitives.NetworkType.Test,
+                    NetworkType.Public => Swisschain.Sirius.Sdk.Primitives.NetworkType.Public,
+                    _ => throw new InvalidEnumArgumentException(nameof(request.NetworkType),
+                        (int) request.NetworkType,
+                        typeof(NetworkType))
+                },
+                request.BlockchainId);
+
+            return await _walletRepository.AddOrGetAsync(wallet);
+        }
+
+        private async Task<bool> ConfirmAsync(Wallet wallet, LoggingContext context)
+        {
+            var response = await _vaultApiClient.Wallets.ConfirmAsync(new ConfirmWalletGenerationRequestRequest
+            {
+                RequestId = $"Vault:Wallet:{wallet.WalletGenerationRequestId}",
+                WalletGenerationRequestId = wallet.WalletGenerationRequestId,
+                PublicKey = wallet.PublicKey,
+                Address = wallet.Address,
+            });
+
+            if (response.BodyCase == ConfirmWalletGenerationRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while confirming wallet generation request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> RejectAsync(long walletGenerationRequestId,
+            RejectionReason reason,
+            string reasonMessage,
+            LoggingContext context)
+        {
+            var response = await _vaultApiClient.Wallets.RejectAsync(new RejectWalletGenerationRequestRequest
+            {
+                RequestId = $"Vault:Wallet:{walletGenerationRequestId}",
+                WalletGenerationRequestId = walletGenerationRequestId,
+                ReasonMessage = reasonMessage,
+                Reason = reason
+            });
+
+            if (response.BodyCase == RejectWalletGenerationRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while rejecting wallet generation request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        #region Nested classes
+
+        public class LoggingContext
+        {
+            public long WalletGenerationRequestId { get; set; }
+
+            public string BlockchainId { get; set; }
+
+            public NetworkType NetworkType { get; set; }
+
+            public string ProtocolCode { get; set; }
+        }
+
+        #endregion
     }
 }

@@ -13,14 +13,12 @@ namespace SimpleVault.Common.Persistence.Wallets
 
         public NetworkType NetworkType { get; set; }
 
-        public DateTime CreatedAt { get; set; }
-
         public string Address { get; set; }
 
         public string PublicKey { get; set; }
 
-        public string ScriptPubKey { get; set; }
-
         public string PrivateKey { get; set; }
+        
+        public DateTimeOffset CreatedAt { get; set; }
     }
 }

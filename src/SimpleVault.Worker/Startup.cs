@@ -1,15 +1,13 @@
-﻿using System.Net.Http;
-using System.Net.Http.Headers;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SimpleVault.Common.Configuration;
 using Swisschain.Sdk.Server.Common;
-using Swisschain.Sirius.SimpleVault.Api.Client;
 using SimpleVault.Common.Cryptography;
+using SimpleVault.Common.HostedServices;
 using SimpleVault.Common.Persistence;
-using SimpleVault.Common.Services;
 using SimpleVault.Worker.HostedServices;
 using SimpleVault.Worker.Jobs;
+using Swisschain.Sirius.VaultApi.ApiClient;
 
 namespace SimpleVault.Worker
 {
@@ -24,25 +22,14 @@ namespace SimpleVault.Worker
         {
             base.ConfigureServicesExt(services);
 
-            services.AddHttpClient();
-            services.AddTransient<ISiriusApiClient>(x =>
-            {
-                var clientFactory = x.GetRequiredService<IHttpClientFactory>();
-                var client = clientFactory.CreateClient();
-                client.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", Config.SiriusApi.Token);
-
-                return new SiriusApiClient(Config.SiriusApi.Url, client);
-            });
-            services.AddServices(Config.Secret.Key);
-            services.AddDomainServices();
-            services.AddPostgresPersistence(Config.Db.ConnectionString);
-            services.AddPostgresStaleConnectionsCleaning(Config.Db.ConnectionString);
-            services.AddPostgresMigration();
-
-            services.AddSingleton<LifeCycleManagerHost>();
-            services.AddHostedService<LifeCycleManagerHost>();
-            services.AddJobs();
+            services.AddHttpClient()
+                .AddSingleton<IVaultApiClient>(x => new VaultApiClient(Config.VaultApi.Token, Config.VaultApi.Url))
+                .AddServices(Config.Secret.Key)
+                .AddPostgresPersistence(Config.Db.ConnectionString)
+                .AddPostgresStaleConnectionsCleaning(Config.Db.ConnectionString)
+                .AddHostedService<MigrationHost>()
+                .AddHostedService<LifeCycleManagerHost>()
+                .AddJobs();
         }
     }
 }

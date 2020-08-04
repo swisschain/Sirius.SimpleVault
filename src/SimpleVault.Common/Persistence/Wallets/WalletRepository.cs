@@ -28,7 +28,8 @@ namespace SimpleVault.Common.Persistence.Wallets
             {
                 await context.SaveChangesAsync();
             }
-            catch (DbUpdateException e) when (e.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
+                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
             }
         }
@@ -47,7 +48,8 @@ namespace SimpleVault.Common.Persistence.Wallets
 
                 return wallet;
             }
-            catch (DbUpdateException e) when (e.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
+                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
                 var existing = await context.Wallets.FirstAsync(x =>
                     x.WalletGenerationRequestId == wallet.WalletGenerationRequestId);
@@ -103,8 +105,7 @@ namespace SimpleVault.Common.Persistence.Wallets
                 PublicKey = wallet.PublicKey,
                 PrivateKey = wallet.PrivateKey,
                 NetworkType = wallet.NetworkType,
-                ProtocolCode = wallet.ProtocolCode,
-                ScriptPubKey = wallet.ScriptPubKey
+                ProtocolCode = wallet.ProtocolCode
             };
         }
 
@@ -113,10 +114,9 @@ namespace SimpleVault.Common.Persistence.Wallets
             var wallet = Wallet.Restore(
                 entity.WalletGenerationRequestId,
                 entity.BlockchainId,
-                entity.CreatedAt,
+                entity.CreatedAt.UtcDateTime,
                 entity.Address,
                 entity.PublicKey,
-                entity.ScriptPubKey,
                 entity.PrivateKey,
                 entity.ProtocolCode,
                 entity.NetworkType);

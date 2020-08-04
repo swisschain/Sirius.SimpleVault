@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace SimpleVault.Common.Configuration
+﻿namespace SimpleVault.Common.Configuration
 {
     public class AppConfig
     {
@@ -8,6 +6,6 @@ namespace SimpleVault.Common.Configuration
 
         public SecretConfig Secret { get; set; }
 
-        public SiriusApiConfig SiriusApi { get; set; }
+        public VaultApiConfig VaultApi { get; set; }
     }
 }

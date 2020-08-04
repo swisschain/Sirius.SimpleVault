@@ -8,10 +8,10 @@ namespace SimpleVault.Common.Persistence
     {
         public DatabaseContext CreateDbContext(string[] args)
         {
-            var connString = Environment.GetEnvironmentVariable("POSTGRE_SQL_CONNECTION_STRING");
+            var connectionString = Environment.GetEnvironmentVariable("POSTGRE_SQL_CONNECTION_STRING");
 
             var optionsBuilder = new DbContextOptionsBuilder<DatabaseContext>();
-            optionsBuilder.UseNpgsql(connString);
+            optionsBuilder.UseNpgsql(connectionString);
 
             return new DatabaseContext(optionsBuilder.Options);
         }

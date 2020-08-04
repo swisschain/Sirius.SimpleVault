@@ -1,6 +1,6 @@
 ﻿namespace SimpleVault.Common.Configuration
 {
-    public class SiriusApiConfig
+    public class VaultApiConfig
     {
         public string Token { get; set; }
 

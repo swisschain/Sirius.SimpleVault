@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using SimpleVault.Common.Persistence;
 
-namespace SimpleVault.Common.Persistence.HostedServices
+namespace SimpleVault.Common.HostedServices
 {
     public class DbSchemaValidationHost : IHostedService
     {

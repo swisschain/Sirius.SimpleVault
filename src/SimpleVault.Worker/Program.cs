@@ -21,8 +21,9 @@ namespace SimpleVault.Worker
 
             var remoteSettingsConfig = ApplicationEnvironment.Config.Get<RemoteSettingsConfig>();
 
-            using var loggerFactory = LogConfigurator.Configure("Sirius", remoteSettingsConfig.RemoteSettingsUrls ?? Array.Empty<string>());
-            
+            using var loggerFactory = LogConfigurator.Configure("Sirius",
+                remoteSettingsConfig.RemoteSettingsUrls ?? Array.Empty<string>());
+
             var logger = loggerFactory.CreateLogger<Program>();
 
             try
@@ -39,12 +40,14 @@ namespace SimpleVault.Worker
             }
         }
 
-        private static IHostBuilder CreateHostBuilder(ILoggerFactory loggerFactory, RemoteSettingsConfig remoteSettingsConfig) =>
+        private static IHostBuilder CreateHostBuilder(ILoggerFactory loggerFactory,
+            RemoteSettingsConfig remoteSettingsConfig) =>
             new HostBuilder()
                 .SwisschainService<Startup>(options =>
                 {
                     options.UseLoggerFactory(loggerFactory);
-                    options.AddWebJsonConfigurationSources(remoteSettingsConfig.RemoteSettingsUrls ?? Array.Empty<string>());
+                    options.AddWebJsonConfigurationSources(remoteSettingsConfig.RemoteSettingsUrls ??
+                                                           Array.Empty<string>());
                 });
     }
 }
