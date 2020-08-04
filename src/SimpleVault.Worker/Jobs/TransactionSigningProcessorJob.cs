@@ -25,13 +25,13 @@ namespace SimpleVault.Worker.Jobs
         private readonly IVaultApiClient _vaultApiClient;
         private readonly ILogger<TransactionSigningProcessorJob> _logger;
 
-        private readonly TimeSpan _delayBetweenRequestsUpdate;
+        private readonly TimeSpan _delay;
+        private readonly TimeSpan _delayOnError;
         private readonly Timer _timer;
         private readonly ManualResetEventSlim _done;
         private readonly CancellationTokenSource _cts;
 
-        public TransactionSigningProcessorJob(
-            ITransactionRepository transactionRepository,
+        public TransactionSigningProcessorJob(ITransactionRepository transactionRepository,
             IWalletRepository walletRepository,
             IEncryptionService encryptionService,
             IVaultApiClient vaultApiClient,
@@ -43,7 +43,8 @@ namespace SimpleVault.Worker.Jobs
             _vaultApiClient = vaultApiClient;
             _logger = logger;
 
-            _delayBetweenRequestsUpdate = TimeSpan.FromSeconds(1);
+            _delay = TimeSpan.FromSeconds(1);
+            _delayOnError = TimeSpan.FromSeconds(30);
 
             _timer = new Timer(TimerCallback,
                 null,
@@ -90,7 +91,7 @@ namespace SimpleVault.Worker.Jobs
             finally
             {
                 if (!_cts.IsCancellationRequested)
-                    _timer.Change(_delayBetweenRequestsUpdate, Timeout.InfiniteTimeSpan);
+                    _timer.Change(_delay, Timeout.InfiniteTimeSpan);
             }
 
             if (_cts.IsCancellationRequested)
@@ -103,8 +104,9 @@ namespace SimpleVault.Worker.Jobs
 
             if (response.BodyCase == GetTransactionSigningRequestResponse.BodyOneofCase.Error)
             {
-                _logger.LogError("An error occurred while getting transaction signing requests. {@context}",
-                    new {response.Error.ErrorMessage});
+                _logger.LogError("An error occurred while getting transaction signing requests. {@error}",
+                    response.Error);
+                await Task.Delay(_delayOnError);
                 return;
             }
 
@@ -124,15 +126,8 @@ namespace SimpleVault.Worker.Jobs
 
                     var transaction = await SignTransactionAsync(transactionSigningRequest);
 
-                    await _vaultApiClient.Transactions.ConfirmAsync(new ConfirmTransactionSigningRequestRequest
-                    {
-                        RequestId = $"Vault:Transaction:{transaction.TransactionSigningRequestId}",
-                        TransactionSigningRequestId = transaction.TransactionSigningRequestId,
-                        TransactionId = transaction.TransactionId,
-                        SignedTransaction = ByteString.CopyFrom(transaction.SignedTransaction)
-                    });
-
-                    _logger.LogInformation("Transaction signing request confirmed. {@context}", context);
+                    if (await ConfirmAsync(transaction, context))
+                        _logger.LogInformation("Transaction signing request confirmed. {@context}", context);
                 }
                 catch (DbException exception)
                 {
@@ -146,15 +141,13 @@ namespace SimpleVault.Worker.Jobs
                 {
                     _logger.LogError(exception, "BlockchainId is not supported. {@context}", context);
 
-                    await _vaultApiClient.Transactions.RejectAsync(new RejectTransactionSigningRequestRequest
+                    if (await RejectAsync(transactionSigningRequest.Id,
+                        TransactionSigningRequestRejectionReason.UnknownBlockchain,
+                        "BlockchainId is not supported",
+                        context))
                     {
-                        RequestId = $"Vault:Transaction:{transactionSigningRequest.Id}",
-                        TransactionSigningRequestId = transactionSigningRequest.Id,
-                        ReasonMessage = "BlockchainId is not supported",
-                        Reason = TransactionSigningRequestRejectionReason.UnknownBlockchain
-                    });
-
-                    _logger.LogInformation("Transaction signing request rejected. {@context}", context);
+                        _logger.LogInformation("Transaction signing request rejected. {@context}", context);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -162,16 +155,13 @@ namespace SimpleVault.Worker.Jobs
                         "An error occurred while processing transaction signing request. {@context}",
                         context);
 
-                    await _vaultApiClient.Transactions.RejectAsync(
-                        new RejectTransactionSigningRequestRequest
-                        {
-                            RequestId = $"Vault:Transaction:{transactionSigningRequest.Id}",
-                            TransactionSigningRequestId = transactionSigningRequest.Id,
-                            ReasonMessage = exception.Message,
-                            Reason = TransactionSigningRequestRejectionReason.Other
-                        });
-
-                    _logger.LogInformation("Transaction signing request rejected. {@context}", context);
+                    if (await RejectAsync(transactionSigningRequest.Id,
+                        TransactionSigningRequestRejectionReason.Other,
+                        exception.Message,
+                        context))
+                    {
+                        _logger.LogInformation("Transaction signing request rejected. {@context}", context);
+                    }
                 }
             }
         }
@@ -200,7 +190,7 @@ namespace SimpleVault.Worker.Jobs
                                             x.Asset.Id.Symbol,
                                             x.Asset.Id.Address),
                                         x.Asset.Accuracy),
-                                    decimal.Parse(x.Value),
+                                    x.Value,
                                     x.Address,
                                     x.Redeem
                                 ))
@@ -228,6 +218,56 @@ namespace SimpleVault.Worker.Jobs
                 coins);
 
             return await _transactionRepository.AddOrGetAsync(transaction);
+        }
+
+        private async Task<bool> ConfirmAsync(Transaction transaction, LoggingContext context)
+        {
+            var response = await _vaultApiClient.Transactions.ConfirmAsync(
+                new ConfirmTransactionSigningRequestRequest
+                {
+                    RequestId = $"Vault:Transaction:{transaction.TransactionSigningRequestId}",
+                    TransactionSigningRequestId = transaction.TransactionSigningRequestId,
+                    TransactionId = transaction.TransactionId,
+                    SignedTransaction = ByteString.CopyFrom(transaction.SignedTransaction)
+                });
+
+            if (response.BodyCase == ConfirmTransactionSigningRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while confirming transaction signing request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> RejectAsync(long transactionSigningRequestId,
+            TransactionSigningRequestRejectionReason reason,
+            string reasonMessage,
+            LoggingContext context)
+        {
+            var response = await _vaultApiClient.Transactions.RejectAsync(new RejectTransactionSigningRequestRequest
+            {
+                RequestId = $"Vault:Transaction:{transactionSigningRequestId}",
+                TransactionSigningRequestId = transactionSigningRequestId,
+                ReasonMessage = reasonMessage,
+                Reason = reason
+            });
+
+            if (response.BodyCase == RejectTransactionSigningRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while rejecting transaction signing request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
         }
 
         #region Nested classes

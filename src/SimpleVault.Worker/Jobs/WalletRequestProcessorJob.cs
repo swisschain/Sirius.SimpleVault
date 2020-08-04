@@ -21,7 +21,8 @@ namespace SimpleVault.Worker.Jobs
         private readonly IVaultApiClient _vaultApiClient;
         private readonly ILogger<WalletRequestProcessorJob> _logger;
 
-        private readonly TimeSpan _delayBetweenRequestsUpdate;
+        private readonly TimeSpan _delay;
+        private readonly TimeSpan _delayOnError;
         private readonly Timer _timer;
         private readonly ManualResetEventSlim _done;
         private readonly CancellationTokenSource _cts;
@@ -35,7 +36,8 @@ namespace SimpleVault.Worker.Jobs
             _encryptionService = encryptionService;
             _vaultApiClient = vaultApiClient;
             _logger = logger;
-            _delayBetweenRequestsUpdate = TimeSpan.FromSeconds(1);
+            _delay = TimeSpan.FromSeconds(1);
+            _delayOnError = TimeSpan.FromSeconds(30);
 
             _timer = new Timer(TimerCallback,
                 null,
@@ -82,7 +84,7 @@ namespace SimpleVault.Worker.Jobs
             finally
             {
                 if (!_cts.IsCancellationRequested)
-                    _timer.Change(_delayBetweenRequestsUpdate, Timeout.InfiniteTimeSpan);
+                    _timer.Change(_delay, Timeout.InfiniteTimeSpan);
             }
 
             if (_cts.IsCancellationRequested)
@@ -95,8 +97,9 @@ namespace SimpleVault.Worker.Jobs
 
             if (response.BodyCase == GetWalletGenerationRequestResponse.BodyOneofCase.Error)
             {
-                _logger.LogError("An error occurred while getting wallet generation requests. {@context}",
-                    new {response.Error.ErrorMessage});
+                _logger.LogError("An error occurred while getting wallet generation requests. {@error}",
+                    response.Error);
+                await Task.Delay(_delayOnError);
                 return;
             }
 
@@ -109,22 +112,15 @@ namespace SimpleVault.Worker.Jobs
                     ProtocolCode = walletGenerationRequest.ProtocolCode,
                     NetworkType = walletGenerationRequest.NetworkType
                 };
-                
+
                 try
                 {
                     _logger.LogInformation("Wallet generation request processing. {@context}", context);
 
                     var wallet = await GenerateWalletAsync(walletGenerationRequest);
 
-                    await _vaultApiClient.Wallets.ConfirmAsync(new ConfirmWalletGenerationRequestRequest
-                    {
-                        RequestId = $"Vault:Wallet:{walletGenerationRequest.Id}",
-                        WalletGenerationRequestId = wallet.WalletGenerationRequestId,
-                        PublicKey = wallet.PublicKey,
-                        Address = wallet.Address,
-                    });
-
-                    _logger.LogInformation("Wallet generation request confirmed. {@context}", context);
+                    if (await ConfirmAsync(wallet, context))
+                        _logger.LogInformation("Wallet generation request confirmed. {@context}", context);
                 }
                 catch (DbException exception)
                 {
@@ -138,15 +134,13 @@ namespace SimpleVault.Worker.Jobs
                 {
                     _logger.LogError(exception, "BlockchainId is not supported. {@context}", context);
 
-                    await _vaultApiClient.Wallets.RejectAsync(new RejectWalletGenerationRequestRequest
+                    if (await RejectAsync(walletGenerationRequest.Id,
+                        RejectionReason.UnknownBlockchain,
+                        "BlockchainId is not supported",
+                        context))
                     {
-                        RequestId = $"Vault:Wallet:{walletGenerationRequest.Id}",
-                        WalletGenerationRequestId = walletGenerationRequest.Id,
-                        ReasonMessage = "BlockchainId is not supported",
-                        Reason = RejectionReason.UnknownBlockchain
-                    });
-
-                    _logger.LogInformation("Wallet generation request rejected. {@context}", context);
+                        _logger.LogInformation("Wallet generation request rejected. {@context}", context);
+                    }
                 }
                 catch (Exception exception)
                 {
@@ -154,15 +148,13 @@ namespace SimpleVault.Worker.Jobs
                         "An error occurred while processing wallet generation request. {@context}",
                         context);
 
-                    await _vaultApiClient.Wallets.RejectAsync(new RejectWalletGenerationRequestRequest
+                    if (await RejectAsync(walletGenerationRequest.Id,
+                        RejectionReason.Other,
+                        exception.Message,
+                        context))
                     {
-                        RequestId = $"Vault:Wallet:{walletGenerationRequest.Id}",
-                        WalletGenerationRequestId = walletGenerationRequest.Id,
-                        ReasonMessage = exception.Message,
-                        Reason = RejectionReason.Other
-                    });
-
-                    _logger.LogInformation("Wallet generation request rejected. {@context}", context);
+                        _logger.LogInformation("Wallet generation request rejected. {@context}", context);
+                    }
                 }
             }
         }
@@ -186,7 +178,56 @@ namespace SimpleVault.Worker.Jobs
 
             return await _walletRepository.AddOrGetAsync(wallet);
         }
-        
+
+        private async Task<bool> ConfirmAsync(Wallet wallet, LoggingContext context)
+        {
+            var response = await _vaultApiClient.Wallets.ConfirmAsync(new ConfirmWalletGenerationRequestRequest
+            {
+                RequestId = $"Vault:Wallet:{wallet.WalletGenerationRequestId}",
+                WalletGenerationRequestId = wallet.WalletGenerationRequestId,
+                PublicKey = wallet.PublicKey,
+                Address = wallet.Address,
+            });
+
+            if (response.BodyCase == ConfirmWalletGenerationRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while confirming wallet generation request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> RejectAsync(long walletGenerationRequestId,
+            RejectionReason reason,
+            string reasonMessage,
+            LoggingContext context)
+        {
+            var response = await _vaultApiClient.Wallets.RejectAsync(new RejectWalletGenerationRequestRequest
+            {
+                RequestId = $"Vault:Wallet:{walletGenerationRequestId}",
+                WalletGenerationRequestId = walletGenerationRequestId,
+                ReasonMessage = reasonMessage,
+                Reason = reason
+            });
+
+            if (response.BodyCase == RejectWalletGenerationRequestResponse.BodyOneofCase.Error)
+            {
+                _logger.LogError(
+                    "An error occurred while rejecting wallet generation request. {@context} {@error}",
+                    context,
+                    response.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
         #region Nested classes
 
         public class LoggingContext

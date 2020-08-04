@@ -194,13 +194,13 @@ namespace SimpleVault.Common.Domain
                     {
                         if (!walletDict.TryGetValue(x.Address, out var wallet))
                         {
-                            throw new InvalidOperationException($"No wallets are stored for {x.Address}");
+                            throw new InvalidOperationException($"No wallet is stored for {x.Address}");
                         }
 
                         return new Swisschain.Sirius.Sdk.Crypto.Coin(x.Id,
                             x.Asset,
                             x.Value,
-                            wallet?.PublicKey,
+                            wallet.PublicKey,
                             x.Redeem);
                     })
                         .ToArray(),
