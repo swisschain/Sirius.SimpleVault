@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 using SimpleVault.Common.Cryptography;
 using SimpleVault.Common.Domain;
 using SimpleVault.Common.Exceptions;
@@ -31,6 +33,8 @@ namespace SimpleVault.Worker.Jobs
         private readonly ManualResetEventSlim _done;
         private readonly CancellationTokenSource _cts;
 
+        private readonly AsyncRetryPolicy _retryPolicy;
+
         public TransactionSigningProcessorJob(ITransactionRepository transactionRepository,
             IWalletRepository walletRepository,
             IEncryptionService encryptionService,
@@ -52,6 +56,12 @@ namespace SimpleVault.Worker.Jobs
                 Timeout.InfiniteTimeSpan);
             _done = new ManualResetEventSlim(false);
             _cts = new CancellationTokenSource();
+
+            _retryPolicy = Policy
+                .Handle<DbUnavailableException>()
+                .WaitAndRetryAsync(3, retryAttempt =>
+                    TimeSpan.FromSeconds(Math.Pow(5, retryAttempt))
+                );
         }
 
         public void Start()
@@ -124,7 +134,8 @@ namespace SimpleVault.Worker.Jobs
                 {
                     _logger.LogInformation("Transaction signing request processing. {@context}", context);
 
-                    var transaction = await SignTransactionAsync(transactionSigningRequest);
+                    var transaction =
+                        await _retryPolicy.ExecuteAsync(() => SignTransactionAsync(transactionSigningRequest));
 
                     if (await ConfirmAsync(transaction, context))
                         _logger.LogInformation("Transaction signing request confirmed. {@context}", context);
@@ -217,7 +228,16 @@ namespace SimpleVault.Worker.Jobs
                 protectionType,
                 coins);
 
-            return await _transactionRepository.AddOrGetAsync(transaction);
+            try
+            {
+                await _transactionRepository.InsertAsync(transaction);
+            }
+            catch (EntityAlreadyExistsException)
+            {
+                return await _transactionRepository.GetBySigningRequestIdAsync(request.Id);
+            }
+
+            return transaction;
         }
 
         private async Task<bool> ConfirmAsync(Transaction transaction, LoggingContext context)

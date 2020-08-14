@@ -6,14 +6,10 @@ namespace SimpleVault.Common.Persistence.Wallets
 {
     public interface IWalletRepository
     {
-        Task<Wallet> GetAsync(long walletGenerationRequestId);
-
-        Task<Wallet> GetOrDefaultAsync(long id);
-
-        Task AddOrIgnoreAsync(Wallet wallet);
-
-        Task<Wallet> AddOrGetAsync(Wallet wallet);
+        Task<Wallet> GetByWalletGenerationRequestAsync(long walletGenerationRequestId);
 
         Task<IReadOnlyCollection<Wallet>> GetByAddressesAsync(IReadOnlyCollection<string> signingAddresses);
+
+        Task InsertAsync(Wallet wallet);
     }
 }

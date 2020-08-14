@@ -4,6 +4,8 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 using SimpleVault.Common.Cryptography;
 using SimpleVault.Common.Domain;
 using SimpleVault.Common.Exceptions;
@@ -26,6 +28,8 @@ namespace SimpleVault.Worker.Jobs
         private readonly Timer _timer;
         private readonly ManualResetEventSlim _done;
         private readonly CancellationTokenSource _cts;
+        
+        private readonly AsyncRetryPolicy _retryPolicy;
 
         public WalletRequestProcessorJob(IWalletRepository walletRepository,
             IEncryptionService encryptionService,
@@ -45,6 +49,12 @@ namespace SimpleVault.Worker.Jobs
                 Timeout.InfiniteTimeSpan);
             _done = new ManualResetEventSlim(false);
             _cts = new CancellationTokenSource();
+            
+            _retryPolicy = Policy
+                .Handle<DbUnavailableException>()
+                .WaitAndRetryAsync(3, retryAttempt =>
+                    TimeSpan.FromSeconds(Math.Pow(5, retryAttempt))
+                );
         }
 
         public void Start()
@@ -117,7 +127,7 @@ namespace SimpleVault.Worker.Jobs
                 {
                     _logger.LogInformation("Wallet generation request processing. {@context}", context);
 
-                    var wallet = await GenerateWalletAsync(walletGenerationRequest);
+                    var wallet = await _retryPolicy.ExecuteAsync(() => GenerateWalletAsync(walletGenerationRequest));
 
                     if (await ConfirmAsync(wallet, context))
                         _logger.LogInformation("Wallet generation request confirmed. {@context}", context);
@@ -176,7 +186,16 @@ namespace SimpleVault.Worker.Jobs
                 },
                 request.BlockchainId);
 
-            return await _walletRepository.AddOrGetAsync(wallet);
+            try
+            {
+                await _walletRepository.InsertAsync(wallet);
+            }
+            catch (EntityAlreadyExistsException)
+            {
+                return await _walletRepository.GetByWalletGenerationRequestAsync(request.Id);
+            }
+
+            return wallet;
         }
 
         private async Task<bool> ConfirmAsync(Wallet wallet, LoggingContext context)
