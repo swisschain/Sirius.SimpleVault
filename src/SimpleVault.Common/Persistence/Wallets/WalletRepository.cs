@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -23,14 +24,15 @@ namespace SimpleVault.Common.Persistence.Wallets
             {
                 await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
 
-                var walletEntity = await context
+                var entity = await context
                     .Wallets
                     .FirstOrDefaultAsync(x => x.WalletGenerationRequestId == walletGenerationRequestId);
 
-                return walletEntity != null ? MapToDomain(walletEntity) : null;
+                return entity != null ? MapToDomain(entity) : null;
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
                 throw new DbUnavailableException(exception);
             }
@@ -51,8 +53,9 @@ namespace SimpleVault.Common.Persistence.Wallets
                     .Select(MapToDomain)
                     .ToArray();
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
                 throw new DbUnavailableException(exception);
             }
@@ -70,13 +73,15 @@ namespace SimpleVault.Common.Persistence.Wallets
 
                 await context.SaveChangesAsync();
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
                 throw new DbUnavailableException(exception);
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            catch (DbUpdateException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
                 throw new EntityAlreadyExistsException(exception);
             }

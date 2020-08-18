@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SimpleVault.Common.Domain;
@@ -21,14 +22,15 @@ namespace SimpleVault.Common.Persistence.Transactions
             {
                 await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
 
-                var walletEntity = await context
+                var entity = await context
                     .Transactions
                     .FirstOrDefaultAsync(x => x.TransactionSigningRequestId == transactionSigningRequestId);
 
-                return walletEntity != null ? MapToDomain(walletEntity) : null;
+                return entity != null ? MapToDomain(entity) : null;
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
                 throw new DbUnavailableException(exception);
             }
@@ -46,13 +48,15 @@ namespace SimpleVault.Common.Persistence.Transactions
 
                 await context.SaveChangesAsync();
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
                 throw new DbUnavailableException(exception);
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                                      pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            catch (DbUpdateException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.UniqueViolation)
             {
                 throw new EntityAlreadyExistsException(exception);
             }
