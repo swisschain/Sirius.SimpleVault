@@ -47,15 +47,3 @@ jobs:
           # snapshot: true # use snapshot to push an additional image, which is tagged with {YEAR}{MONTH}{DAY}{HOUR}{MINUTE}{SECOND}{first 6 digits of the git sha}
           tag_names: true
           tag_name_skip: service-
-      - name: Restart service
-        uses: swisschain/kube-restart-pods@master
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-          NAMESPACE: sirius
-          POD: simple-vault
-      - name: Restart worker
-        uses: swisschain/kube-restart-pods@master
-        env:
-          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
-          NAMESPACE: sirius
-          POD: simple-vault-worker

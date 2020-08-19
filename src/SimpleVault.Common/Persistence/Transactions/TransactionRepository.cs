@@ -1,7 +1,9 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SimpleVault.Common.Domain;
+using SimpleVault.Common.Exceptions;
 
 namespace SimpleVault.Common.Persistence.Transactions
 {
@@ -14,69 +16,50 @@ namespace SimpleVault.Common.Persistence.Transactions
             _dbContextOptionsBuilder = dbContextOptionsBuilder;
         }
 
-        public async Task AddOrIgnoreAsync(Transaction transaction)
+        public async Task<Transaction> GetBySigningRequestIdAsync(long transactionSigningRequestId)
         {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var entity = MapToEntity(transaction);
-
-            context.Transactions.Add(entity);
-
             try
             {
-                await context.SaveChangesAsync();
+                await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
+
+                var entity = await context
+                    .Transactions
+                    .FirstOrDefaultAsync(x => x.TransactionSigningRequestId == transactionSigningRequestId);
+
+                return entity != null ? MapToDomain(entity) : null;
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
+                throw new DbUnavailableException(exception);
             }
         }
 
-        public async Task<Transaction> AddOrGetAsync(Transaction transaction)
+        public async Task InsertAsync(Transaction transaction)
         {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var entity = MapToEntity(transaction);
-
-            context.Transactions.Add(entity);
-
             try
             {
+                await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
+
+                var entity = MapToEntity(transaction);
+
+                context.Transactions.Add(entity);
+
                 await context.SaveChangesAsync();
-
-                return transaction;
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
-                var existing = await context.Transactions.FirstAsync(x =>
-                    x.TransactionSigningRequestId == transaction.TransactionSigningRequestId);
-
-                return MapToDomain(existing);
+                throw new DbUnavailableException(exception);
             }
-        }
-
-
-        public async Task<Transaction> GetAsync(long transactionSigningRequestId)
-        {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var transactionEntity = await context
-                .Transactions
-                .FirstAsync(x => x.TransactionSigningRequestId == transactionSigningRequestId);
-
-            return MapToDomain(transactionEntity);
-        }
-
-        public async Task<Transaction> GetOrDefaultAsync(long transactionSigningRequestId)
-        {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var walletEntity = await context
-                .Transactions
-                .FirstOrDefaultAsync(x => x.TransactionSigningRequestId == transactionSigningRequestId);
-
-            return walletEntity != null ? MapToDomain(walletEntity) : null;
+            catch (DbUpdateException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                throw new EntityAlreadyExistsException(exception);
+            }
         }
 
         private static TransactionEntity MapToEntity(Transaction transaction)

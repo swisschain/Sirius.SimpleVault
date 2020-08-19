@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SimpleVault.Common.Domain;
+using SimpleVault.Common.Exceptions;
 
 namespace SimpleVault.Common.Persistence.Wallets
 {
@@ -16,87 +18,78 @@ namespace SimpleVault.Common.Persistence.Wallets
             _dbContextOptionsBuilder = dbContextOptionsBuilder;
         }
 
-        public async Task AddOrIgnoreAsync(Wallet wallet)
+        public async Task<Wallet> GetByWalletGenerationRequestAsync(long walletGenerationRequestId)
         {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var entity = MapToEntity(wallet);
-
-            context.Wallets.Add(entity);
-
             try
             {
-                await context.SaveChangesAsync();
+                await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
+
+                var entity = await context
+                    .Wallets
+                    .FirstOrDefaultAsync(x => x.WalletGenerationRequestId == walletGenerationRequestId);
+
+                return entity != null ? MapToDomain(entity) : null;
             }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
             {
-            }
-        }
-
-        public async Task<Wallet> AddOrGetAsync(Wallet wallet)
-        {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var entity = MapToEntity(wallet);
-
-            context.Wallets.Add(entity);
-
-            try
-            {
-                await context.SaveChangesAsync();
-
-                return wallet;
-            }
-            catch (DbUpdateException exception) when (exception.InnerException is PostgresException pgException &&
-                                              pgException.SqlState == PostgresErrorCodes.UniqueViolation)
-            {
-                var existing = await context.Wallets.FirstAsync(x =>
-                    x.WalletGenerationRequestId == wallet.WalletGenerationRequestId);
-
-                return MapToDomain(existing);
+                throw new DbUnavailableException(exception);
             }
         }
 
         public async Task<IReadOnlyCollection<Wallet>> GetByAddressesAsync(IReadOnlyCollection<string> signingAddresses)
         {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
+            try
+            {
+                await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
 
-            var query = context.Wallets.Where(x => signingAddresses.Contains(x.Address));
+                var query = context.Wallets.Where(x => signingAddresses.Contains(x.Address));
 
-            await query.LoadAsync();
+                await query.LoadAsync();
 
-            return query
-                .AsEnumerable()
-                .Select(MapToDomain)
-                .ToArray();
+                return query
+                    .AsEnumerable()
+                    .Select(MapToDomain)
+                    .ToArray();
+            }
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            {
+                throw new DbUnavailableException(exception);
+            }
         }
 
-        public async Task<Wallet> GetAsync(long walletGenerationRequestId)
+        public async Task InsertAsync(Wallet wallet)
         {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
+            try
+            {
+                await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
 
-            var walletEntity = await context
-                .Wallets
-                .FirstAsync(x => x.WalletGenerationRequestId == walletGenerationRequestId);
+                var entity = MapToEntity(wallet);
 
-            return MapToDomain(walletEntity);
-        }
+                context.Wallets.Add(entity);
 
-        public async Task<Wallet> GetOrDefaultAsync(long walletGenerationRequestId)
-        {
-            await using var context = new DatabaseContext(_dbContextOptionsBuilder.Options);
-
-            var walletEntity = await context
-                .Wallets
-                .FirstOrDefaultAsync(x => x.WalletGenerationRequestId == walletGenerationRequestId);
-
-            return walletEntity != null ? MapToDomain(walletEntity) : null;
+                await context.SaveChangesAsync();
+            }
+            catch (InvalidOperationException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.TooManyConnections)
+            {
+                throw new DbUnavailableException(exception);
+            }
+            catch (DbUpdateException exception) when (
+                exception.InnerException is PostgresException pgException &&
+                pgException.SqlState == PostgresErrorCodes.UniqueViolation)
+            {
+                throw new EntityAlreadyExistsException(exception);
+            }
         }
 
         private static WalletEntity MapToEntity(Wallet wallet)
         {
-            return new WalletEntity()
+            return new WalletEntity
             {
                 CreatedAt = wallet.CreatedAt,
                 BlockchainId = wallet.BlockchainId,
