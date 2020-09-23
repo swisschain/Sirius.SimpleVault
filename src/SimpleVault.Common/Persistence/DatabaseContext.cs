@@ -36,6 +36,14 @@ namespace SimpleVault.Common.Persistence
 
             modelBuilder.Entity<WalletEntity>()
                 .HasIndex(entity => entity.Address);
+
+            modelBuilder.Entity<WalletEntity>()
+                .Property(entity => entity.TenantId)
+                .IsRequired();
+
+            modelBuilder.Entity<WalletEntity>()
+                .Property(entity => entity.Group)
+                .IsRequired();
         }
 
         private static void BuildTransactions(ModelBuilder modelBuilder)

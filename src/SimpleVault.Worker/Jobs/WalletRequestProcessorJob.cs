@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -10,6 +11,7 @@ using SimpleVault.Common.Cryptography;
 using SimpleVault.Common.Domain;
 using SimpleVault.Common.Exceptions;
 using SimpleVault.Common.Persistence.Wallets;
+using Swisschain.Sdk.Server.Common;
 using Swisschain.Sirius.VaultApi.ApiClient;
 using Swisschain.Sirius.VaultApi.ApiContract.Common;
 using Swisschain.Sirius.VaultApi.ApiContract.Wallets;
@@ -120,7 +122,9 @@ namespace SimpleVault.Worker.Jobs
                     WalletGenerationRequestId = walletGenerationRequest.Id,
                     BlockchainId = walletGenerationRequest.BlockchainId,
                     ProtocolCode = walletGenerationRequest.ProtocolCode,
-                    NetworkType = walletGenerationRequest.NetworkType
+                    NetworkType = walletGenerationRequest.NetworkType,
+                    TenantId = walletGenerationRequest.TenantId,
+                    Group = walletGenerationRequest.Group
                 };
 
                 try
@@ -184,7 +188,9 @@ namespace SimpleVault.Worker.Jobs
                         (int) request.NetworkType,
                         typeof(NetworkType))
                 },
-                request.BlockchainId);
+                request.BlockchainId,
+                request.TenantId,
+                request.Group);
 
             try
             {
@@ -206,6 +212,8 @@ namespace SimpleVault.Worker.Jobs
                 WalletGenerationRequestId = wallet.WalletGenerationRequestId,
                 PublicKey = wallet.PublicKey,
                 Address = wallet.Address,
+                Signature = "empty",
+                HostProcessId = $"{ApplicationEnvironment.HostName}-{Process.GetCurrentProcess().Id}"
             });
 
             if (response.BodyCase == ConfirmWalletGenerationRequestResponse.BodyOneofCase.Error)
@@ -231,7 +239,8 @@ namespace SimpleVault.Worker.Jobs
                 RequestId = $"Vault:Wallet:{walletGenerationRequestId}",
                 WalletGenerationRequestId = walletGenerationRequestId,
                 ReasonMessage = reasonMessage,
-                Reason = reason
+                Reason = reason,
+                HostProcessId = $"{ApplicationEnvironment.HostName}-{Process.GetCurrentProcess().Id}"
             });
 
             if (response.BodyCase == RejectWalletGenerationRequestResponse.BodyOneofCase.Error)
@@ -258,6 +267,10 @@ namespace SimpleVault.Worker.Jobs
             public NetworkType NetworkType { get; set; }
 
             public string ProtocolCode { get; set; }
+
+            public string TenantId { get; set; }
+
+            public string Group { get; set; }
         }
 
         #endregion
