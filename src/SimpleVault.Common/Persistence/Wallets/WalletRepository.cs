@@ -98,7 +98,9 @@ namespace SimpleVault.Common.Persistence.Wallets
                 PublicKey = wallet.PublicKey,
                 PrivateKey = wallet.PrivateKey,
                 NetworkType = wallet.NetworkType,
-                ProtocolCode = wallet.ProtocolCode
+                ProtocolCode = wallet.ProtocolCode,
+                TenantId = wallet.TenantId,
+                Group = wallet.Group
             };
         }
 
@@ -112,7 +114,9 @@ namespace SimpleVault.Common.Persistence.Wallets
                 entity.PublicKey,
                 entity.PrivateKey,
                 entity.ProtocolCode,
-                entity.NetworkType);
+                entity.NetworkType,
+                entity.TenantId,
+                entity.Group);
 
             return wallet;
         }

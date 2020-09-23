@@ -15,7 +15,9 @@ namespace SimpleVault.Common.Domain
             string publicKey,
             string privateKey,
             NetworkType networkType,
-            string protocolCode)
+            string protocolCode,
+            string tenantId,
+            string group)
         {
             WalletGenerationRequestId = walletGenerationRequestId;
             BlockchainId = blockchainId;
@@ -25,6 +27,8 @@ namespace SimpleVault.Common.Domain
             PrivateKey = privateKey;
             NetworkType = networkType;
             ProtocolCode = protocolCode;
+            TenantId = tenantId;
+            Group = group;
         }
 
         public long WalletGenerationRequestId { get; }
@@ -41,6 +45,10 @@ namespace SimpleVault.Common.Domain
 
         public string PrivateKey { get; }
 
+        public string TenantId { get; }
+
+        public string Group { get; }
+
         public DateTime CreatedAt { get; }
 
         public static Wallet Create(
@@ -48,7 +56,9 @@ namespace SimpleVault.Common.Domain
             long walletGenerationRequestId,
             string protocolCode,
             NetworkType networkType,
-            string blockchainId)
+            string blockchainId,
+            string tenantId,
+            string group)
         {
             var addressGeneratorFactory = new AddressGeneratorFactory();
             
@@ -74,7 +84,9 @@ namespace SimpleVault.Common.Domain
                 generatedWallet.PublicKey,
                 privateKey,
                 networkType,
-                protocolCode);
+                protocolCode,
+                tenantId,
+                group);
 
             return wallet;
         }
@@ -87,7 +99,9 @@ namespace SimpleVault.Common.Domain
             string publicKey,
             string privateKey,
             string protocolCode,
-            NetworkType networkType)
+            NetworkType networkType,
+            string tenantId,
+            string group)
         {
             var wallet = new Wallet(
                 walletGenerationRequestId,
@@ -97,7 +111,9 @@ namespace SimpleVault.Common.Domain
                 publicKey,
                 privateKey,
                 networkType,
-                protocolCode);
+                protocolCode,
+                tenantId,
+                group);
 
             return wallet;
         }
