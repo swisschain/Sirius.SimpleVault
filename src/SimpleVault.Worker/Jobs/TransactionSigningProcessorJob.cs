@@ -14,8 +14,8 @@ using SimpleVault.Common.Exceptions;
 using SimpleVault.Common.Persistence.Transactions;
 using SimpleVault.Common.Persistence.Wallets;
 using Swisschain.Sirius.VaultApi.ApiClient;
-using Swisschain.Sirius.VaultApi.ApiContract.Transactions;
 using Swisschain.Sirius.VaultApi.ApiContract.Common;
+using Swisschain.Sirius.VaultApi.ApiContract.TransferSigninRequests;
 
 namespace SimpleVault.Worker.Jobs
 {
@@ -110,24 +110,24 @@ namespace SimpleVault.Worker.Jobs
 
         private async Task ProcessAsync()
         {
-            var response = await _vaultApiClient.Transactions.GetAsync(new GetTransactionSigningRequestRequest());
+            var response = await _vaultApiClient.TransferSigningRequests.GetAsync(new GetTransferSigningRequestsRequest());
 
-            if (response.BodyCase == GetTransactionSigningRequestResponse.BodyOneofCase.Error)
+            if (response.BodyCase == GetTransferSigningRequestsResponse.BodyOneofCase.Error)
             {
-                _logger.LogError("An error occurred while getting transaction signing requests. {@error}",
+                _logger.LogError("An error occurred while getting transfers signing requests. {@error}",
                     response.Error);
                 await Task.Delay(_delayOnError);
                 return;
             }
 
-            foreach (var transactionSigningRequest in response.Response.Requests)
+            foreach (var transferSigningRequest in response.Response.Requests)
             {
                 var context = new LoggingContext
                 {
-                    TransactionSigningRequestId = transactionSigningRequest.Id,
-                    BlockchainId = transactionSigningRequest.BlockchainId,
-                    DoubleSpendingProtectionType = transactionSigningRequest.DoubleSpendingProtectionType,
-                    NetworkType = transactionSigningRequest.NetworkType
+                    TransactionSigningRequestId = transferSigningRequest.Id,
+                    BlockchainId = transferSigningRequest.BlockchainId,
+                    DoubleSpendingProtectionType = transferSigningRequest.DoubleSpendingProtectionType,
+                    NetworkType = transferSigningRequest.NetworkType
                 };
 
                 try
@@ -135,7 +135,7 @@ namespace SimpleVault.Worker.Jobs
                     _logger.LogInformation("Transaction signing request processing. {@context}", context);
 
                     var transaction =
-                        await _retryPolicy.ExecuteAsync(() => SignTransactionAsync(transactionSigningRequest));
+                        await _retryPolicy.ExecuteAsync(() => SignTransactionAsync(transferSigningRequest));
 
                     if (await ConfirmAsync(transaction, context))
                         _logger.LogInformation("Transaction signing request confirmed. {@context}", context);
@@ -152,8 +152,8 @@ namespace SimpleVault.Worker.Jobs
                 {
                     _logger.LogError(exception, "BlockchainId is not supported. {@context}", context);
 
-                    if (await RejectAsync(transactionSigningRequest.Id,
-                        TransactionSigningRequestRejectionReason.UnknownBlockchain,
+                    if (await RejectAsync(transferSigningRequest.Id,
+                        TransferSigningRequestRejectionReason.UnknownBlockchain,
                         "BlockchainId is not supported",
                         context))
                     {
@@ -166,8 +166,8 @@ namespace SimpleVault.Worker.Jobs
                         "An error occurred while processing transaction signing request. {@context}",
                         context);
 
-                    if (await RejectAsync(transactionSigningRequest.Id,
-                        TransactionSigningRequestRejectionReason.Other,
+                    if (await RejectAsync(transferSigningRequest.Id,
+                        TransferSigningRequestRejectionReason.Other,
                         exception.Message,
                         context))
                     {
@@ -177,7 +177,7 @@ namespace SimpleVault.Worker.Jobs
             }
         }
 
-        private async Task<Transaction> SignTransactionAsync(TransactionSigningRequest request)
+        private async Task<Transaction> SignTransactionAsync(TransferSigningRequest request)
         {
             var protectionType = request.DoubleSpendingProtectionType switch
             {
@@ -242,16 +242,16 @@ namespace SimpleVault.Worker.Jobs
 
         private async Task<bool> ConfirmAsync(Transaction transaction, LoggingContext context)
         {
-            var response = await _vaultApiClient.Transactions.ConfirmAsync(
-                new ConfirmTransactionSigningRequestRequest
+            var response = await _vaultApiClient.TransferSigningRequests.ConfirmAsync(
+                new ConfirmTransferSigningRequestRequest()
                 {
                     RequestId = $"Vault:Transaction:{transaction.TransactionSigningRequestId}",
-                    TransactionSigningRequestId = transaction.TransactionSigningRequestId,
+                    TransferSigningRequestId = transaction.TransactionSigningRequestId,
                     TransactionId = transaction.TransactionId,
                     SignedTransaction = ByteString.CopyFrom(transaction.SignedTransaction)
                 });
 
-            if (response.BodyCase == ConfirmTransactionSigningRequestResponse.BodyOneofCase.Error)
+            if (response.BodyCase == ConfirmTransferSigningRequestResponse.BodyOneofCase.Error)
             {
                 _logger.LogError(
                     "An error occurred while confirming transaction signing request. {@context} {@error}",
@@ -265,19 +265,19 @@ namespace SimpleVault.Worker.Jobs
         }
 
         private async Task<bool> RejectAsync(long transactionSigningRequestId,
-            TransactionSigningRequestRejectionReason reason,
+            TransferSigningRequestRejectionReason reason,
             string reasonMessage,
             LoggingContext context)
         {
-            var response = await _vaultApiClient.Transactions.RejectAsync(new RejectTransactionSigningRequestRequest
+            var response = await _vaultApiClient.TransferSigningRequests.RejectAsync(new RejectTransferSigningRequestRequest()
             {
-                RequestId = $"Vault:Transaction:{transactionSigningRequestId}",
-                TransactionSigningRequestId = transactionSigningRequestId,
+                RequestId = $"Vault:Transfer:{transactionSigningRequestId}",
+                TransferSigningRequestId = transactionSigningRequestId,
                 ReasonMessage = reasonMessage,
                 Reason = reason
             });
 
-            if (response.BodyCase == RejectTransactionSigningRequestResponse.BodyOneofCase.Error)
+            if (response.BodyCase == RejectTransferSigningRequestResponse.BodyOneofCase.Error)
             {
                 _logger.LogError(
                     "An error occurred while rejecting transaction signing request. {@context} {@error}",
