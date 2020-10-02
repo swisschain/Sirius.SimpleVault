@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace SimpleVault.Worker.Jobs
 {
@@ -6,6 +6,7 @@ namespace SimpleVault.Worker.Jobs
     {
         public static IServiceCollection AddJobs(this IServiceCollection services)
         {
+            services.AddSingleton<TransferValidationProcessorJob>();
             services.AddSingleton<TransactionSigningProcessorJob>();
             services.AddSingleton<WalletRequestProcessorJob>();
 
