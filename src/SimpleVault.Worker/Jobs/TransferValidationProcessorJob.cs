@@ -51,7 +51,7 @@ namespace SimpleVault.Worker.Jobs
         public void Start()
         {
             _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-            _logger.LogInformation($"{nameof(TransactionSigningProcessorJob)} started.");
+            _logger.LogInformation($"{nameof(TransferValidationProcessorJob)} started.");
         }
 
         public void Stop()
@@ -109,7 +109,7 @@ namespace SimpleVault.Worker.Jobs
                 var context = new LoggingContext
                 {
                     TransferValidationRequestId = transferValidationRequest.Id,
-                    BlockchainId = transferValidationRequest.Details.Blockchain.Id,
+                    BlockchainId = transferValidationRequest.Blockchain.Id
                 };
 
                 try
@@ -141,11 +141,11 @@ namespace SimpleVault.Worker.Jobs
             var response = await _vaultApiClient.TransferValidationRequests.ConfirmAsync(
                new ConfirmTransferValidationRequestRequest()
                {
-                   HostProcessId = "",
-                   PolicyResult = "Approved",
                    RequestId = $"Vault:TransferValidation:Confirm:{transferValidationRequest.Id}",
-                   Signature = "",
-                   TransferValidationRequestId = transferValidationRequest.Id
+                   TransferValidationRequestId = transferValidationRequest.Id,
+                   Document = "Approved",
+                   Signature = "empty",
+                   HostProcessId = "simple-vault"
                });
 
             if (response.BodyCase == ConfirmTransferValidationRequestResponse.BodyOneofCase.Error)

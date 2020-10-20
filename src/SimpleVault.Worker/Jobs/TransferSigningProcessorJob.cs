@@ -19,13 +19,13 @@ using Swisschain.Sirius.VaultApi.ApiContract.TransferSigninRequests;
 
 namespace SimpleVault.Worker.Jobs
 {
-    public class TransactionSigningProcessorJob : IDisposable
+    public class TransferSigningProcessorJob : IDisposable
     {
         private readonly ITransactionRepository _transactionRepository;
         private readonly IWalletRepository _walletRepository;
         private readonly IEncryptionService _encryptionService;
         private readonly IVaultApiClient _vaultApiClient;
-        private readonly ILogger<TransactionSigningProcessorJob> _logger;
+        private readonly ILogger<TransferSigningProcessorJob> _logger;
 
         private readonly TimeSpan _delay;
         private readonly TimeSpan _delayOnError;
@@ -35,11 +35,11 @@ namespace SimpleVault.Worker.Jobs
 
         private readonly AsyncRetryPolicy _retryPolicy;
 
-        public TransactionSigningProcessorJob(ITransactionRepository transactionRepository,
+        public TransferSigningProcessorJob(ITransactionRepository transactionRepository,
             IWalletRepository walletRepository,
             IEncryptionService encryptionService,
             IVaultApiClient vaultApiClient,
-            ILogger<TransactionSigningProcessorJob> logger)
+            ILogger<TransferSigningProcessorJob> logger)
         {
             _transactionRepository = transactionRepository;
             _walletRepository = walletRepository;
@@ -67,12 +67,12 @@ namespace SimpleVault.Worker.Jobs
         public void Start()
         {
             _timer.Change(TimeSpan.Zero, Timeout.InfiniteTimeSpan);
-            _logger.LogInformation($"{nameof(TransactionSigningProcessorJob)} started.");
+            _logger.LogInformation($"{nameof(TransferSigningProcessorJob)} started.");
         }
 
         public void Stop()
         {
-            _logger.LogInformation($"{nameof(TransactionSigningProcessorJob)} stopped.");
+            _logger.LogInformation($"{nameof(TransferSigningProcessorJob)} stopped.");
             _cts.Cancel();
         }
 
@@ -223,7 +223,7 @@ namespace SimpleVault.Worker.Jobs
                         null)
                 },
                 request.ProtocolCode,
-                request.SigningAddresses?.ToArray(),
+                request.SigningAddresses?.Select(o=>o.Address).ToArray(),
                 request.BuiltTransaction.ToByteArray(),
                 protectionType,
                 coins);
@@ -243,12 +243,14 @@ namespace SimpleVault.Worker.Jobs
         private async Task<bool> ConfirmAsync(Transaction transaction, LoggingContext context)
         {
             var response = await _vaultApiClient.TransferSigningRequests.ConfirmAsync(
-                new ConfirmTransferSigningRequestRequest()
+                new ConfirmTransferSigningRequestRequest
                 {
                     RequestId = $"Vault:Transaction:{transaction.TransactionSigningRequestId}",
                     TransferSigningRequestId = transaction.TransactionSigningRequestId,
                     TransactionId = transaction.TransactionId,
-                    SignedTransaction = ByteString.CopyFrom(transaction.SignedTransaction)
+                    SignedTransaction = ByteString.CopyFrom(transaction.SignedTransaction),
+                    Signature = "empty",
+                    HostProcessId = "simple-vault"
                 });
 
             if (response.BodyCase == ConfirmTransferSigningRequestResponse.BodyOneofCase.Error)
@@ -273,8 +275,8 @@ namespace SimpleVault.Worker.Jobs
             {
                 RequestId = $"Vault:Transfer:{transactionSigningRequestId}",
                 TransferSigningRequestId = transactionSigningRequestId,
-                ReasonMessage = reasonMessage,
-                Reason = reason
+                RejectionReason = reason,
+                RejectionReasonMessage = reasonMessage
             });
 
             if (response.BodyCase == RejectTransferSigningRequestResponse.BodyOneofCase.Error)

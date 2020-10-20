@@ -6,8 +6,8 @@ namespace SimpleVault.Worker.Jobs
     {
         public static IServiceCollection AddJobs(this IServiceCollection services)
         {
+            services.AddSingleton<TransferSigningProcessorJob>();
             services.AddSingleton<TransferValidationProcessorJob>();
-            services.AddSingleton<TransactionSigningProcessorJob>();
             services.AddSingleton<WalletRequestProcessorJob>();
 
             return services;
