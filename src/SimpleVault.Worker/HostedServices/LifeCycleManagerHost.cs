@@ -7,23 +7,23 @@ namespace SimpleVault.Worker.HostedServices
 {
     public class LifeCycleManagerHost : IHostedService
     {
-        private readonly TransactionSigningProcessorJob _transactionSigningProcessorJob;
+        private readonly TransferSigningProcessorJob _transferSigningProcessorJob;
         private readonly WalletRequestProcessorJob _walletRequestProcessorJob;
         private readonly TransferValidationProcessorJob _transferValidationProcessorJob;
 
         public LifeCycleManagerHost(
-            TransactionSigningProcessorJob transactionSigningProcessorJob,
+            TransferSigningProcessorJob transferSigningProcessorJob,
             WalletRequestProcessorJob walletRequestProcessorJob,
             TransferValidationProcessorJob transferValidationProcessorJob)
         {
-            _transactionSigningProcessorJob = transactionSigningProcessorJob;
+            _transferSigningProcessorJob = transferSigningProcessorJob;
             _walletRequestProcessorJob = walletRequestProcessorJob;
             _transferValidationProcessorJob = transferValidationProcessorJob;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _transactionSigningProcessorJob.Start();
+            _transferSigningProcessorJob.Start();
             _walletRequestProcessorJob.Start();
             _transferValidationProcessorJob.Start();
 
@@ -32,11 +32,11 @@ namespace SimpleVault.Worker.HostedServices
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _transactionSigningProcessorJob.Stop();
+            _transferSigningProcessorJob.Stop();
             _walletRequestProcessorJob.Stop();
             _transferValidationProcessorJob.Stop();
 
-            _transactionSigningProcessorJob.Wait();
+            _transferSigningProcessorJob.Wait();
             _walletRequestProcessorJob.Wait();
             _transferValidationProcessorJob.Wait();
 
